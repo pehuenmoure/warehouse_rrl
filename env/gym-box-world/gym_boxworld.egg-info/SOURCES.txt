@@ -1,0 +1,7 @@
+README.md
+setup.py
+gym_boxworld.egg-info/PKG-INFO
+gym_boxworld.egg-info/SOURCES.txt
+gym_boxworld.egg-info/dependency_links.txt
+gym_boxworld.egg-info/requires.txt
+gym_boxworld.egg-info/top_level.txt

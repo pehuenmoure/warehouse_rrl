@@ -1,0 +1,3 @@
+[submodule "env/warehouse-env"]
+	path = env/warehouse-env
+	url = https://github.com/eczy/warehouse-env/tree/pehuen-dev
