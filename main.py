@@ -30,21 +30,21 @@ def make_env(env_id, env_level, rank, log_dir, frame_stack=False, useMonitor=Tru
     def _init():
         if env_id == "WarehouseEnv":
 #             if map_file is "None" or map_file is None:
-simple_agent = \
-         [[ 1,  0,  0,  0,  0,  2, 0],
-          [ 0,  0,  0,  0,  0,  0, 0],
-          [ 0,  0,  0,  0,  0,  0, 0],
-          [ 0,  0,  0,  0,  0,  0, 0],
-          [ 0,  0,  0,  0,  0,  0, 0],
-          [ 0,  0,  0,  3,  0,  0, 0]]
-simple_world = \
-         [[  0,  0,  0,  0,  0,  0, 0],
-          [  0,  0,  0,  1,  0,  0, 0],
-          [  1,  0,  0,  0,  1,  0, 0],
-          [  0,  0,  0,  1,  0,  0, 0],
-          [  0,  0,  0,  0,  0,  0, 0],
-          [  0,  0,  0,  0,  0,  0, 0]]
-env = WarehouseEnv(agent_map=np.array(simple_agent), obstacle_map=np.array(simple_world))
+            simple_agent = \
+                     [[ 1,  0,  0,  0,  0,  2, 0],
+                      [ 0,  0,  0,  0,  0,  0, 0],
+                      [ 0,  0,  0,  0,  0,  0, 0],
+                      [ 0,  0,  0,  0,  0,  0, 0],
+                      [ 0,  0,  0,  0,  0,  0, 0],
+                      [ 0,  0,  0,  3,  0,  0, 0]]
+            simple_world = \
+                     [[  0,  0,  0,  0,  0,  0, 0],
+                      [  0,  0,  0,  1,  0,  0, 0],
+                      [  1,  0,  0,  0,  1,  0, 0],
+                      [  0,  0,  0,  1,  0,  0, 0],
+                      [  0,  0,  0,  0,  0,  0, 0],
+                      [  0,  0,  0,  0,  0,  0, 0]]
+            env = WarehouseEnv(agent_map=np.array(simple_agent), obstacle_map=np.array(simple_world))
         else:
             env = gym.make(env_id, level=env_level)
         if frame_stack:
