@@ -16,11 +16,11 @@ import numpy as np
 
 def saveInLearn(log_dir):
     # A unit of time saved
-    unit_time = int(1e7)
+    unit_time = int(1e5)
 
     def callback(_locals, _globals):
         num_timesteps = _locals['self'].num_timesteps
-        if num_timesteps >= 10 * unit_time and num_timesteps % unit_time == 0:
+        if num_timesteps >= 1 * unit_time and num_timesteps % unit_time == 0:
             _locals['self'].save(log_dir + 'model_{}.pkl'.format(num_timesteps))
         return True
     return callback
@@ -86,7 +86,8 @@ def set_model(config, env, log_dir):
     base_mode = {'A2C': A2C}
     # whether reduce oberservation
     policy[config.policy_name].reduce_obs = config.reduce_obs
-    model = base_mode[config.model_name](policy[config.policy_name], env, verbose=1)
+    model = base_mode[config.model_name](policy[config.policy_name], env, verbose=1, tensorboard_log=log_dir, 
+                                        n_steps=config.env_steps)
     print(("--------Algorithm:{} with {} num_cpu:{} total_timesteps:{} Start to train!--------\n")
           .format(config.model_name, config.policy_name, config.num_cpu, config.total_timesteps))
     return model
@@ -97,8 +98,8 @@ def run(config):
     env = set_env(config, log_dir)
     model = set_model(config, env, log_dir)
     model.learn(total_timesteps=int(config.total_timesteps), callback=saveInLearn(log_dir) if config.save else None)
-    # if config.save:
-    #     model.save(log_dir + 'model.pkl')
+    if config.save:
+        model.save(log_dir + 'model.pkl')
 
 
 if __name__ == '__main__':
@@ -115,10 +116,13 @@ if __name__ == '__main__':
     parser.add_argument("-timeline", action='store_true', help='performance analysis,default=False')
     parser.add_argument("-frame_stack", action='store_true', help='whether use frame_stack, default=False')
     parser.add_argument("-cuda_device", default='1', help='which cuda device to run, default="1"')
-    parser.add_argument("-num_cpu", default=4, type=int, help='whether use frame_stack, default=False')
+    parser.add_argument("-num_cpu", default=4, type=int, help='number of CPUs')
     parser.add_argument("-total_timesteps", default=2e6, type=float, help='total train timesteps, default=2e6')
     parser.add_argument("-log_dir", default='exp_result', help='log_dir path, default="exp_result"')
     parser.add_argument("-save", action='store_true', help='whether save model to log_dir, default=False')
+    
+    parser.add_argument("-env_steps", default=50, type=int, help='log_dir path, default="50"')
+
 
     config = parser.parse_args()
     # print(config)
