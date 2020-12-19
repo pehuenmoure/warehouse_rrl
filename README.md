@@ -12,6 +12,35 @@ The Reinforcement Learning Algorithm is A2C, but it's very easy to change the ba
 
 
 The versions are just what I used and not necessarily strict requirements.
+
+### Install warehouse environment
+Go to the `env/warehouse-env/` folder and run the command :
+```
+python3 setup.py install
+```
+
+This will install the warehouse-env environment. Now, you can use this enviroment with the following:
+```
+from warehouse_env.warehouse_env import WarehouseEnv
+import numpy as np
+simple_agent = \
+         [[ 1,  0,  0,  0,  0,  2, 0],
+          [ 0,  0,  0,  0,  0,  0, 0],
+          [ 0,  0,  0,  0,  0,  0, 0],
+          [ 0,  0,  0,  0,  0,  0, 0],
+          [ 0,  0,  0,  0,  0,  0, 0],
+          [ 0,  0,  0,  3,  0,  0, 0]]
+simple_world = \
+         [[  0,  0,  0,  0,  0,  0, 0],
+          [  0,  0,  0,  1,  0,  0, 0],
+          [  1,  0,  0,  0,  1,  0, 0],
+          [  0,  0,  0,  1,  0,  0, 0],
+          [  0,  0,  0,  0,  0,  0, 0],
+          [  0,  0,  0,  0,  0,  0, 0]]
+env = WarehouseEnv(agent_map=np.array(simple_agent), obstacle_map=np.array(simple_world))
+```
+[More details about the Env](https://github.com/eczy/warehouse-env/blob/pehuen-dev/README.md)
+
 ### Install boxworld environment
 Go to the `env/gym-box-world` folder and run the command :
 ```
@@ -35,7 +64,7 @@ python main.py --help
 ```
 An example:
 ```
-python main.py BoxRandWorld -env_level easy RelationalPolicy
+python3 main.py WarehouseEnv RelationalPolicy -save -total_timesteps 2e6 -env_steps 100
 ```
 ## Experiment result
 ### BoxRandWorld, level = easy, head = 2
