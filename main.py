@@ -3,7 +3,7 @@ import json
 import os
 import gym
 import gym_boxworld
-from stable_baselines import A2C
+from stable_baselines import A2C, ACKTR, ACER
 from stable_baselines.common.policies import CnnPolicy
 from relational_policies import RelationalPolicy, RelationalLstmPolicy  # custom Policy
 from stable_baselines.common.vec_env import SubprocVecEnv
@@ -21,7 +21,7 @@ def saveInLearn(log_dir):
     def callback(_locals, _globals):
         num_timesteps = _locals['self'].num_timesteps
         if num_timesteps >= 1 * unit_time and num_timesteps % unit_time == 0:
-            _locals['self'].save(log_dir + 'model_{}.pkl'.format(num_timesteps))
+            _locals['self'].save(log_dir + 'model_{}.zip'.format(num_timesteps))
         return True
     return callback
 
@@ -31,19 +31,21 @@ def make_env(env_id, env_level, rank, log_dir, frame_stack=False, useMonitor=Tru
         if env_id == "WarehouseEnv":
 #             if map_file is "None" or map_file is None:
             simple_agent = \
-                     [[ 1,  0,  0,  0,  0,  2, 0],
-                      [ 0,  0,  0,  0,  0,  0, 0],
-                      [ 0,  0,  0,  0,  0,  0, 0],
-                      [ 0,  0,  0,  0,  0,  0, 0],
-                      [ 0,  0,  0,  0,  0,  0, 0],
-                      [ 0,  0,  0,  3,  0,  0, 0]]
+                     [[ 0, 1,  0,  0,  0,  0,  2, 0, 0],
+                      [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
+                      [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
+                      [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
+                      [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
+                      [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
+                      [ 0, 0,  0,  0,  3,  0,  0, 0, 0]]
             simple_world = \
-                     [[  0,  0,  0,  0,  0,  0, 0],
-                      [  0,  0,  0,  1,  0,  0, 0],
-                      [  1,  0,  0,  0,  1,  0, 0],
-                      [  0,  0,  0,  1,  0,  0, 0],
-                      [  0,  0,  0,  0,  0,  0, 0],
-                      [  0,  0,  0,  0,  0,  0, 0]]
+                     [[ 0, 0,  0,  0,  0,  0,  0, 0, 0],
+                      [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
+                      [ 0, 0,  0,  0,  1,  0,  0, 0, 0],
+                      [ 0, 1,  0,  0,  0,  1,  0, 0, 0],
+                      [ 0, 0,  0,  0,  1,  0,  0, 0, 0],
+                      [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
+                      [ 0, 0,  0,  0,  0,  0,  0, 0, 0]]
             env = WarehouseEnv(agent_map=np.array(simple_agent), obstacle_map=np.array(simple_world))
         else:
             env = gym.make(env_id, level=env_level)
@@ -83,7 +85,7 @@ def set_model(config, env, log_dir):
         A2C.log_dir = log_dir
         A2C._train_step = _train_step
     policy = {'CnnPolicy': CnnPolicy, 'RelationalPolicy': RelationalPolicy, 'RelationalLstmPolicy': RelationalLstmPolicy}
-    base_mode = {'A2C': A2C}
+    base_mode = {'A2C': A2C, "ACKTR": ACKTR, "ACER": ACER}
     # whether reduce oberservation
     policy[config.policy_name].reduce_obs = config.reduce_obs
     model = base_mode[config.model_name](policy[config.policy_name], env, verbose=1, tensorboard_log=log_dir, 
@@ -99,18 +101,23 @@ def run(config):
     model = set_model(config, env, log_dir)
     model.learn(total_timesteps=int(config.total_timesteps), callback=saveInLearn(log_dir) if config.save else None)
     if config.save:
-        model.save(log_dir + 'model.pkl')
+        model.save(log_dir + 'model.zip')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("env_name", choices=['BoxRandWorld', 'BoxWorld', "WarehouseEnv"], help="Name of environment")
-    parser.add_argument("-env_level", choices=['easy', 'medium', 'hard'], default='easy', help="level of environment")
+    parser.add_argument("env_name", choices=['BoxRandWorld', 'BoxWorld', "WarehouseEnv"], 
+                        help="Name of environment")
+    parser.add_argument("-env_level", choices=['easy', 'medium', 'hard'], default='easy', 
+                        help="level of environment")
     
     parser.add_argument("-map_file", default='None', type=str, help="Map file")
     
-    parser.add_argument("policy_name", choices=['RelationalPolicy', 'CnnPolicy', 'RelationalLstmPolicy'], help="Name of policy")
-    parser.add_argument("-model_name", choices=['A2C'], default='A2C', help="Name of model")
+    parser.add_argument("policy_name", choices=['RelationalPolicy', 'CnnPolicy', 'RelationalLstmPolicy'], 
+                        help="Name of policy")
+    
+    parser.add_argument("-model_name", choices=['A2C', 'ACER', 'ACKTR'], 
+                        default='A2C', help="Name of model")
     parser.add_argument("-reduce_obs", action='store_true')
 
     parser.add_argument("-timeline", action='store_true', help='performance analysis,default=False')

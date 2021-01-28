@@ -92,6 +92,9 @@ class RelationalLstmPolicy(RecurrentActorCriticPolicy):
 
 
 def relation_block(self, processed_obs):
+    if not hasattr(self, 'reduce_obs'):
+        self.reduce_obs = False
+    
     entities = build_entities(processed_obs, self.reduce_obs)
     print('entities:', entities)
     # [B,n_heads,N,Deepth=D+2]
