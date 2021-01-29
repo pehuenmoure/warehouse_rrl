@@ -41,6 +41,17 @@ env = WarehouseEnv(agent_map=np.array(simple_agent), obstacle_map=np.array(simpl
 ```
 [More details about the Env](https://github.com/eczy/warehouse-env/blob/pehuen-dev/README.md)
 
+### ODrM* compilation: compile cpp_mstar code
+Go to `od_mstar3` folder and run command:
+```
+python3 setup.py build_ext (may need --inplace as extra argument)
+```
+
+Check installation by running:
+```
+from od_mstar3 import cpp_mstar
+```
+
 ### Install boxworld environment
 Go to the `env/gym-box-world` folder and run the command :
 ```
@@ -67,6 +78,14 @@ An example:
 python3 main.py WarehouseEnv RelationalPolicy -save -total_timesteps 2e6 -env_steps 100
 ```
 ## Experiment result
+
+### Relation diagram
+The following is the example running environment using greedy A* for path planning:
+![](gym_animation_astar.gif)
+
+The following is the example running environment using ODrM* for coordinated path planning:
+![](gym_animation_mstar.gif)
+
 ### BoxRandWorld, level = easy, head = 2
 #### Training Curve
 
