@@ -1,5 +1,5 @@
 # Implementation of Relational Deep Reinforcement Learning
-This Repository is implementation of [Relational Deep Reinforcement Learning](https://arxiv.org/abs/1806.01830) to BoxWorld Environment.
+This Repository is implementation of [Relational Deep Reinforcement Learning](https://arxiv.org/abs/1806.01830) with imitation learning on the Warehouse Environment.
 
 The Reinforcement Learning Algorithm is A2C, but it's very easy to change the base algorithm.
 ## Requirements
@@ -52,41 +52,32 @@ Check installation by running:
 from od_mstar3 import cpp_mstar
 ```
 
+### Expert Planners 
+The following is the example running environment using greedy A* for path planning:
+![](gif/gym_animation_astar.gif)
+
+The following is the example running environment using ODrM* for coordinated path planning:
+![](gif/gym_animation_mstar.gif)
+
 ### Install boxworld environment
 Go to the `env/gym-box-world` folder and run the command :
 ```
 pip install -e .
 ```
 
-This will install the box-world environment. Now, you can use this enviroment with the following:
-```
-import gym
-import gym_boxworld
-env_name = 'BoxRandWorld'
-env_id = env_name + 'NoFrameskip-v4'
-env = gym.make(env_id,level='easy')
-```
-[More details about the Env](https://github.com/gyh75520/Relational_DRL/blob/master/env/gym-box-world/README.md)
-
 ## How to Run
 All training code is contained within ```main.py```. To view options simply run:
 ```
-python main.py --help
+python3 main.py --help
 ```
+
 An example:
 ```
-python3 main.py WarehouseEnv RelationalPolicy -save -total_timesteps 2e6 -env_steps 100
+python3 main.py WarehouseEnv RelationalPolicy -model A2CE -save -total_timesteps 2e7 -env_steps 50 -priming_steps 10000 -coordinated_planner
 ```
+
 ## Experiment result
 
-### Relation diagram
-The following is the example running environment using greedy A* for path planning:
-![](gym_animation_astar.gif)
-
-The following is the example running environment using ODrM* for coordinated path planning:
-![](gym_animation_mstar.gif)
-
-### BoxRandWorld, level = easy, head = 2
 #### Training Curve
 
 <!-- <div align="center">

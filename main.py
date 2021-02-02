@@ -3,7 +3,7 @@ import json
 import os
 import gym
 import gym_boxworld
-from stable_baselines import A2C, ACKTR, ACER
+from stable_baselines import A2C, ACKTR, ACER, A2CWithExperts
 from stable_baselines.common.policies import CnnPolicy
 from relational_policies import RelationalPolicy, RelationalLstmPolicy  # custom Policy
 from stable_baselines.common.vec_env import SubprocVecEnv
@@ -85,11 +85,15 @@ def set_model(config, env, log_dir):
         A2C.log_dir = log_dir
         A2C._train_step = _train_step
     policy = {'CnnPolicy': CnnPolicy, 'RelationalPolicy': RelationalPolicy, 'RelationalLstmPolicy': RelationalLstmPolicy}
-    base_mode = {'A2C': A2C, "ACKTR": ACKTR, "ACER": ACER}
+    base_mode = {'A2C': A2C, "ACKTR": ACKTR, "ACER": ACER, 'A2CE': A2CWithExperts}
     # whether reduce oberservation
     policy[config.policy_name].reduce_obs = config.reduce_obs
-    model = base_mode[config.model_name](policy[config.policy_name], env, verbose=1, tensorboard_log=log_dir, 
-                                        n_steps=config.env_steps)
+    n_steps = config.env_steps
+    model = base_mode[config.model_name](policy[config.policy_name], env, verbose=1, 
+                                         tensorboard_log=log_dir, 
+                                         n_steps=n_steps, 
+                                         priming_steps=config.priming_steps, 
+                                         coordinated_planner=config.coordinated_planner)
     print(("--------Algorithm:{} with {} num_cpu:{} total_timesteps:{} Start to train!--------\n")
           .format(config.model_name, config.policy_name, config.num_cpu, config.total_timesteps))
     return model
@@ -116,7 +120,7 @@ if __name__ == '__main__':
     parser.add_argument("policy_name", choices=['RelationalPolicy', 'CnnPolicy', 'RelationalLstmPolicy'], 
                         help="Name of policy")
     
-    parser.add_argument("-model_name", choices=['A2C', 'ACER', 'ACKTR'], 
+    parser.add_argument("-model_name", choices=['A2C', 'ACER', 'ACKTR', 'A2CE'], 
                         default='A2C', help="Name of model")
     parser.add_argument("-reduce_obs", action='store_true')
 
@@ -128,7 +132,9 @@ if __name__ == '__main__':
     parser.add_argument("-log_dir", default='exp_result', help='log_dir path, default="exp_result"')
     parser.add_argument("-save", action='store_true', help='whether save model to log_dir, default=False')
     
-    parser.add_argument("-env_steps", default=50, type=int, help='log_dir path, default="50"')
+    parser.add_argument("-env_steps", default=50, type=int, help='num steps, default="50"')
+    parser.add_argument("-priming_steps", default=1000, type=int, help='priming steps, default="1000"')
+    parser.add_argument("-coordinated_planner", action='store_true', help='whether to use a coordinated_planner, default false')
 
 
     config = parser.parse_args()

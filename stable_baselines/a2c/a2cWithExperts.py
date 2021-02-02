@@ -13,7 +13,10 @@ from stable_baselines.a2c.utils import discount_with_dones, Scheduler, mse, \
     total_episode_reward_logger
 from stable_baselines.ppo2.ppo2 import safe_mean
 
-class A2C(ActorCriticRLModel):
+from od_mstar3 import cpp_mstar
+import networkx as nx
+
+class A2CWithExperts(ActorCriticRLModel):
     """
     The A2C (Advantage Actor Critic) model class, https://arxiv.org/abs/1602.01783
 
@@ -45,12 +48,14 @@ class A2C(ActorCriticRLModel):
         If None, the number of cpu of the current machine will be used.
     """
 
-    def __init__(self, policy, env, gamma=0.99, n_steps=5, vf_coef=0.25, ent_coef=0.01, max_grad_norm=0.5,
-                 learning_rate=7e-4, alpha=0.99, epsilon=1e-5, lr_schedule='constant', verbose=0,
-                 tensorboard_log=None, _init_setup_model=True, policy_kwargs=None,
-                 full_tensorboard_log=False, seed=None, n_cpu_tf_sess=None):
+    def __init__(self, policy, env, priming_steps=1000, coordinated_planner=False,
+                 gamma=0.99, n_steps=5, vf_coef=0.25, ent_coef=0.01,
+                 max_grad_norm=0.5, learning_rate=7e-4, alpha=0.99, epsilon=1e-5, 
+                 lr_schedule='constant', verbose=0, tensorboard_log=None, 
+                 _init_setup_model=True, policy_kwargs=None, full_tensorboard_log=False, 
+                 seed=None, n_cpu_tf_sess=None):
 
-        super(A2C, self).__init__(policy=policy, env=env, verbose=verbose, requires_vec_env=True,
+        super(A2CWithExperts, self).__init__(policy=policy, env=env, verbose=verbose, requires_vec_env=True,
                                   _init_setup_model=_init_setup_model, policy_kwargs=policy_kwargs,
                                   seed=seed, n_cpu_tf_sess=n_cpu_tf_sess)
 
@@ -87,7 +92,10 @@ class A2C(ActorCriticRLModel):
         self.learning_rate_schedule = None
         self.summary = None
         self.episode_reward = None
-
+        
+        self.priming_steps = priming_steps
+        self.coordinated_planner = coordinated_planner
+        
         # if we are loading, it is possible the environment is not known, however the obs and action space are known
         if _init_setup_model:
             self.setup_model()
@@ -235,7 +243,9 @@ class A2C(ActorCriticRLModel):
             self.learning_rate_schedule = Scheduler(initial_value=self.learning_rate, n_values=total_timesteps,
                                                     schedule=self.lr_schedule)
 
-            runner = A2CRunner(self.env, self, n_steps=self.n_steps, gamma=self.gamma)
+            runner = A2CRunnerWithExperts(self.env, self, n_steps=self.n_steps, gamma=self.gamma,
+                                          priming_steps=self.priming_steps, 
+                                          coordinated_planner=self.coordinated_planner)
             self.episode_reward = np.zeros((self.n_envs,))
             # Training stats (when using Monitor wrapper)
             ep_info_buf = deque(maxlen=100)
@@ -243,7 +253,7 @@ class A2C(ActorCriticRLModel):
             t_start = time.time()
             for update in range(1, total_timesteps // self.n_batch + 1):
                 # true_reward is the reward without discount
-                obs, states, rewards, masks, actions, values, ep_infos, true_reward = runner.run()
+                obs, states, rewards, masks, actions, values, ep_infos, true_reward = runner.run(update)
                 ep_info_buf.extend(ep_infos)
                 _, value_loss, policy_entropy = self._train_step(obs, states, rewards, masks, actions, values,
                                                                  self.num_timesteps // self.n_batch, writer)
@@ -304,9 +314,86 @@ class A2C(ActorCriticRLModel):
         params_to_save = self.get_parameters()
 
         self._save_to_file(save_path, data=data, params=params_to_save, cloudpickle=cloudpickle)
+
+class MAPF_Expert():
+    def __init__(self, env, coordinated_planner=False):
+        self.env = env
+        self.env_graphs = self.warehouse_to_graph(env)
+        self.coordinated_planner = coordinated_planner
+    
         
-class A2CRunner(AbstractEnvRunner):
-    def __init__(self, env, model, n_steps=5, gamma=0.99):
+    def warehouse_to_graph(self, env):
+        agent_maps = env.get_attr("agent_map")
+        obstacle_maps = env.get_attr("obstacle_map")
+        graphs = []
+        
+        for agent_map, obstacle_map in zip(agent_maps, obstacle_maps):
+            w, h = agent_map.shape[0], agent_map.shape[1]
+            G = nx.grid_2d_graph(w, h)
+            H = G.to_directed()
+
+            obstacles = np.argwhere(obstacle_map > 0)
+
+            _ = [H.remove_node((o[0], o[1])) for o in obstacles]
+            graphs.append(H)
+            
+        return graphs
+    
+    def get_next_action(self):
+        agent_goals = self.env.get_attr("agent_goal")
+        agent_states = self.env.get_attr("agent_state")
+        obstacle_maps = self.env.get_attr("obstacle_map")
+        current_agent_ids = self.env.get_attr("current_agent_id")
+        
+        return_vals = []
+
+        for agent_state, agent_goal, obstacle_map, current_agent_id, env_graph in \
+                zip(agent_states, agent_goals, obstacle_maps, current_agent_ids, self.env_graphs):
+            
+            coordinated_planner = self.coordinated_planner
+            
+            if coordinated_planner:
+                states = [(v[0], v[1]) for k, v in agent_state.items()]
+                goals = [(v[0], v[1]) for k, v in agent_goal.items()]
+                path = None
+                start_x, start_y = None, None
+                next_x, next_y = None, None
+
+                try:
+                    path = cpp_mstar.find_path(obstacle_map, states, goals, 10, 5 * 60.0)
+
+                    start_x, start_y = agent_state[current_agent_id]
+                    next_x, next_y = path[1][current_agent_id]   
+                except:
+                    # Fallback to greedy astar
+                    coordinated_planner = False
+
+            if not coordinated_planner:
+                location = agent_state[current_agent_id]
+                goal = agent_goal[current_agent_id]
+
+                path = nx.astar_path(env_graph, (location[0], location[1]), (goal[0], goal[1]))
+
+                start_x, start_y = path[0]
+                next_x, next_y = path[1]
+
+            if (start_y + 1)  == next_y:
+                return_val = 0
+            elif (start_y - 1) == next_y:
+                return_val = 2
+            elif (start_x - 1) == next_x:
+                return_val = 1
+            elif (start_x + 1) == next_x:
+                return_val = 3
+            else:
+                return_val = 4
+            
+            return_vals.append(return_val)
+
+        return return_vals
+        
+class A2CRunnerWithExperts(AbstractEnvRunner):
+    def __init__(self, env, model, n_steps=5, gamma=0.99, priming_steps=1000, coordinated_planner=False):
         """
         A runner to learn the policy of an environment for an a2c model
 
@@ -315,10 +402,12 @@ class A2CRunner(AbstractEnvRunner):
         :param n_steps: (int) The number of steps to run for each environment
         :param gamma: (float) Discount factor
         """
-        super(A2CRunner, self).__init__(env=env, model=model, n_steps=n_steps)
+        super(A2CRunnerWithExperts, self).__init__(env=env, model=model, n_steps=n_steps)
         self.gamma = gamma
+        self.expert = MAPF_Expert(env, coordinated_planner=coordinated_planner)
+        self.priming_steps = priming_steps
 
-    def run(self):
+    def run(self, training_step):
         """
         Run a learning step of the model
 
@@ -328,8 +417,13 @@ class A2CRunner(AbstractEnvRunner):
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones = [], [], [], [], []
         mb_states = self.states
         ep_infos = []
+        count = 0
         for _ in range(self.n_steps):
             actions, values, states, _ = self.model.step(self.obs, self.states, self.dones)
+            if training_step <= self.priming_steps:
+                expert_action = self.expert.get_next_action()
+                actions = expert_action 
+                
             mb_obs.append(np.copy(self.obs))
             mb_actions.append(actions)
             mb_values.append(values)
