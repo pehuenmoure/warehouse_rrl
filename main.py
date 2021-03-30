@@ -3,7 +3,7 @@ import json
 import os
 import gym
 import gym_boxworld
-from stable_baselines import A2C, ACKTR, ACER, A2CWithExperts
+from stable_baselines import A2C, ACKTR, ACER#, A2CWithExperts
 from stable_baselines.common.policies import CnnPolicy
 from relational_policies import RelationalPolicy, RelationalLstmPolicy  # custom Policy
 from stable_baselines.common.vec_env import SubprocVecEnv
@@ -26,7 +26,7 @@ def saveInLearn(log_dir):
     return callback
 
 
-def make_env(env_id, env_level, rank, log_dir, frame_stack=False, useMonitor=True, seed=0, map_file=None):
+def make_env(env_id, env_level, rank, log_dir, frame_stack=False, useMonitor=True, seed=0, map_file=None, render_as_observation=False):
     def _init():
         if env_id == "WarehouseEnv":
 #             if map_file is "None" or map_file is None:
@@ -38,6 +38,14 @@ def make_env(env_id, env_level, rank, log_dir, frame_stack=False, useMonitor=Tru
                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
                       [ 0, 0,  0,  0,  3,  0,  0, 0, 0]]
+#             simple_agent = \
+#                      [[ 0, 1,  0,  0,  0,  0,  0, 0, 0],
+#                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
+#                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
+#                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
+#                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
+#                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
+#                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0]]
             simple_world = \
                      [[ 0, 0,  0,  0,  0,  0,  0, 0, 0],
                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
@@ -46,7 +54,8 @@ def make_env(env_id, env_level, rank, log_dir, frame_stack=False, useMonitor=Tru
                       [ 0, 0,  0,  0,  1,  0,  0, 0, 0],
                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0]]
-            env = WarehouseEnv(agent_map=np.array(simple_agent), obstacle_map=np.array(simple_world))
+            env = WarehouseEnv(agent_map=np.array(simple_agent), obstacle_map=np.array(simple_world),
+                              render_as_observation=render_as_observation)
         else:
             env = gym.make(env_id, level=env_level)
         if frame_stack:
@@ -75,7 +84,8 @@ def set_logdir(config):
 
 def set_env(config, log_dir):
     env_id = "WarehouseEnv" if config.env_name == "WarehouseEnv" else config.env_name + 'NoFrameskip-v4'
-    env = SubprocVecEnv([make_env(env_id, config.env_level, i, log_dir, frame_stack=config.frame_stack, map_file=config.map_file) for i in range(config.num_cpu)])
+    env = SubprocVecEnv([make_env(env_id, config.env_level, i, log_dir, frame_stack=config.frame_stack, map_file=config.map_file,
+                                 render_as_observation=config.render_as_observation) for i in range(config.num_cpu)])
     return env
 
 
@@ -85,15 +95,15 @@ def set_model(config, env, log_dir):
         A2C.log_dir = log_dir
         A2C._train_step = _train_step
     policy = {'CnnPolicy': CnnPolicy, 'RelationalPolicy': RelationalPolicy, 'RelationalLstmPolicy': RelationalLstmPolicy}
-    base_mode = {'A2C': A2C, "ACKTR": ACKTR, "ACER": ACER, 'A2CE': A2CWithExperts}
+    base_mode = {'A2C': A2C, "ACKTR": ACKTR, "ACER": ACER, 'A2CE': A2C}
     # whether reduce oberservation
     policy[config.policy_name].reduce_obs = config.reduce_obs
     n_steps = config.env_steps
     model = base_mode[config.model_name](policy[config.policy_name], env, verbose=1, 
                                          tensorboard_log=log_dir, 
-                                         n_steps=n_steps, 
-                                         priming_steps=config.priming_steps, 
-                                         coordinated_planner=config.coordinated_planner)
+                                         n_steps=n_steps)#, 
+#                                          priming_steps=config.priming_steps, 
+#                                          coordinated_planner=config.coordinated_planner)
     print(("--------Algorithm:{} with {} num_cpu:{} total_timesteps:{} Start to train!--------\n")
           .format(config.model_name, config.policy_name, config.num_cpu, config.total_timesteps))
     return model
@@ -135,6 +145,7 @@ if __name__ == '__main__':
     parser.add_argument("-env_steps", default=50, type=int, help='num steps, default="50"')
     parser.add_argument("-priming_steps", default=1000, type=int, help='priming steps, default="1000"')
     parser.add_argument("-coordinated_planner", action='store_true', help='whether to use a coordinated_planner, default false')
+    parser.add_argument("-render_as_observation", action='store_true', help='whether to use a render_as_observation, default false')
 
 
     config = parser.parse_args()
