@@ -76,26 +76,32 @@ An example:
 python3 main.py WarehouseEnv RelationalPolicy -model A2CE -save -total_timesteps 2e7 -env_steps 50 -priming_steps 10000 -coordinated_planner
 ```
 
+An example for running using rendered image observation
+```
+python3 main.py WarehouseEnv RelationalLstmPolicy -model A2C -save -total_timesteps 2e7 -env_steps 50 -priming_steps 0 -cuda_device 3 -render_as_observation
+```
+
 ## Experiment result
 
 #### Training Curve
 
-<!-- <div align="center">
-<img src="http://ww1.sinaimg.cn/large/74c11ddely1g94sxzhiu2j218g0ukwhe.jpg" width=600 />
-</div> -->
+![](gif/base_training.png)
 
-<div align="center">
-<img src="http://ww1.sinaimg.cn/large/74c11ddely1g9rm3th3b5j20av07n0t0.jpg" width=400 />
-</div>
+#### Small Environment
 
+##### Single Agent
 
-#### Relation diagram
-The following is the relation(attention) weight diagram of the agent
-> 0:Dark
-> 1:White
+![](gif/relational_single_animation.gif)
 
-The greater the weight, the more the color tends to be white
-<!-- ![](gif/BoxRandWorldEasy2.gif)
-![](gif/BoxRandWorldEasy3.gif) -->
+##### Multiple Agents
 
-![](gif/concise_cnn_not_reduceObs.gif)
+![](gif/relational_multi_animation.gif)
+
+#### Big Environment
+
+##### Sparse Environment
+
+![](gif/big_sparse_gym_animation_relational_astar_1000.gif)
+
+##### Dense Environment
+![](gif/big_gym_animation_relational_astar_1000.gif)
