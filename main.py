@@ -3,8 +3,8 @@ import json
 import os
 import gym
 import gym_boxworld
-from stable_baselines import A2C, ACKTR, ACER#, A2CWithExperts
-from stable_baselines.common.policies import CnnPolicy
+from stable_baselines import A2C, ACKTR, ACER
+from stable_baselines.common.policies import CnnPolicy, LstmPolicy
 from relational_policies import RelationalPolicy, RelationalLstmPolicy  # custom Policy
 from stable_baselines.common.vec_env import SubprocVecEnv
 from stable_baselines.common import set_global_seeds
@@ -26,18 +26,20 @@ def saveInLearn(log_dir):
     return callback
 
 
-def make_env(env_id, env_level, rank, log_dir, frame_stack=False, useMonitor=True, seed=0, map_file=None, render_as_observation=False):
+def make_env(env_id, env_level, rank, log_dir, frame_stack=False, useMonitor=True, seed=0, map_file=None, render_as_observation=False,
+            exponential_agent_training_curve=False):
     def _init():
         if env_id == "WarehouseEnv":
 #             if map_file is "None" or map_file is None:
-            simple_agent = \
-                     [[ 0, 1,  0,  0,  0,  0,  2, 0, 0],
-                      [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
-                      [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
-                      [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
-                      [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
-                      [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
-                      [ 0, 0,  0,  0,  3,  0,  0, 0, 0]]
+            simple_agent = np.zeros((11,11)) 
+            simple_agent[5,5] = 1
+#                      [[ 0, 1,  0,  0,  0,  0,  2, 0, 0],
+#                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
+#                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
+#                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
+#                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
+#                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
+#                       [ 0, 0,  0,  0,  3,  0,  0, 0, 0]]
 #             simple_agent = \
 #                      [[ 0, 1,  0,  0,  0,  0,  0, 0, 0],
 #                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
@@ -46,16 +48,17 @@ def make_env(env_id, env_level, rank, log_dir, frame_stack=False, useMonitor=Tru
 #                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
 #                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
 #                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0]]
-            simple_world = \
-                     [[ 0, 0,  0,  0,  0,  0,  0, 0, 0],
-                      [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
-                      [ 0, 0,  0,  0,  1,  0,  0, 0, 0],
-                      [ 0, 1,  0,  0,  0,  1,  0, 0, 0],
-                      [ 0, 0,  0,  0,  1,  0,  0, 0, 0],
-                      [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
-                      [ 0, 0,  0,  0,  0,  0,  0, 0, 0]]
-            env = WarehouseEnv(agent_map=np.array(simple_agent), obstacle_map=np.array(simple_world),
-                              render_as_observation=render_as_observation)
+            simple_world = np.zeros((11,11))
+#                      [[ 0, 0,  0,  0,  0,  0,  0, 0, 0],
+#                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
+#                       [ 0, 0,  0,  0,  1,  0,  0, 0, 0],
+#                       [ 0, 1,  0,  0,  0,  1,  0, 0, 0],
+#                       [ 0, 0,  0,  0,  1,  0,  0, 0, 0],
+#                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0],
+#                       [ 0, 0,  0,  0,  0,  0,  0, 0, 0]]
+            env = WarehouseEnv(agent_map=simple_agent, obstacle_map=simple_world,
+                               render_as_observation=render_as_observation, 
+                               exponential_agent_training_curve=exponential_agent_training_curve)
         else:
             env = gym.make(env_id, level=env_level)
         if frame_stack:
@@ -94,14 +97,15 @@ def set_model(config, env, log_dir):
         from timeline_util import _train_step
         A2C.log_dir = log_dir
         A2C._train_step = _train_step
-    policy = {'CnnPolicy': CnnPolicy, 'RelationalPolicy': RelationalPolicy, 'RelationalLstmPolicy': RelationalLstmPolicy}
-    base_mode = {'A2C': A2C, "ACKTR": ACKTR, "ACER": ACER, 'A2CE': A2C}
+    policy = {'CnnPolicy': CnnPolicy, 'LstmPolicy': LstmPolicy, 'RelationalPolicy': RelationalPolicy, 'RelationalLstmPolicy': RelationalLstmPolicy}
+    base_mode = {'A2C': A2C, "ACKTR": ACKTR, "ACER": ACER}
     # whether reduce oberservation
     policy[config.policy_name].reduce_obs = config.reduce_obs
     n_steps = config.env_steps
+    policy_kwargs = dict(feature_extraction=(config.render_as_observation))
     model = base_mode[config.model_name](policy[config.policy_name], env, verbose=1, 
                                          tensorboard_log=log_dir, 
-                                         n_steps=n_steps)#, 
+                                         n_steps=n_steps, policy_kwargs=policy_kwargs) 
 #                                          priming_steps=config.priming_steps, 
 #                                          coordinated_planner=config.coordinated_planner)
     print(("--------Algorithm:{} with {} num_cpu:{} total_timesteps:{} Start to train!--------\n")
@@ -127,10 +131,10 @@ if __name__ == '__main__':
     
     parser.add_argument("-map_file", default='None', type=str, help="Map file")
     
-    parser.add_argument("policy_name", choices=['RelationalPolicy', 'CnnPolicy', 'RelationalLstmPolicy'], 
+    parser.add_argument("policy_name", choices=['RelationalPolicy', 'CnnPolicy', 'RelationalLstmPolicy', 'LstmPolicy'], 
                         help="Name of policy")
     
-    parser.add_argument("-model_name", choices=['A2C', 'ACER', 'ACKTR', 'A2CE'], 
+    parser.add_argument("-model_name", choices=['A2C', 'ACER', 'ACKTR'], 
                         default='A2C', help="Name of model")
     parser.add_argument("-reduce_obs", action='store_true')
 
@@ -146,7 +150,9 @@ if __name__ == '__main__':
     parser.add_argument("-priming_steps", default=1000, type=int, help='priming steps, default="1000"')
     parser.add_argument("-coordinated_planner", action='store_true', help='whether to use a coordinated_planner, default false')
     parser.add_argument("-render_as_observation", action='store_true', help='whether to use a render_as_observation, default false')
-
+    parser.add_argument("-delta_tolling", action='store_true', help='whether to use a delta_tolling, default false')
+    parser.add_argument("-random_agent_reset_location", action='store_true', help='whether to use a random_agent_reset_location, default false')
+    parser.add_argument("-exponential_agent_training_curve", action='store_true', help='whether to use a exponential_agent_training_curve, default false')
 
     config = parser.parse_args()
     # print(config)
