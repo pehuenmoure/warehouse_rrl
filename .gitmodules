@@ -1,3 +1,6 @@
 [submodule "env/warehouse_env"]
 	path = env/warehouse_env
 	url = git@github.com:eczy/warehouse-env.git
+[submodule "DRRL"]
+	path = DRRL
+	url = git@github.com:eczy/DRRL.git
