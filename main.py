@@ -92,8 +92,9 @@ def set_model(config, env, log_dir):
     model = base_mode[config.model_name](policy[config.policy_name], env, verbose=1, 
                                          tensorboard_log=log_dir, 
                                          n_steps=n_steps, 
-                                         priming_steps=config.priming_steps, 
-                                         coordinated_planner=config.coordinated_planner)
+                                        #  priming_steps=config.priming_steps, 
+                                        #  coordinated_planner=config.coordinated_planner
+                                        )
     print(("--------Algorithm:{} with {} num_cpu:{} total_timesteps:{} Start to train!--------\n")
           .format(config.model_name, config.policy_name, config.num_cpu, config.total_timesteps))
     return model
